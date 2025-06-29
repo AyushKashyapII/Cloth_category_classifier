@@ -1,17 +1,22 @@
 from flask import Flask, request, jsonify
-from model import predict_attributes
 import os
+from inference import load_model, predict
 
 app = Flask(__name__)
 
+# Initialize once on startup
+df_dir = "DeepFashion"  # this folder should exist
+checkpoint = "results/pretrained_model/epoch_340.pth"  # downloaded manually
+model, cat_names, attr_names, attr_types = load_model(df_dir, checkpoint)
+
 @app.route("/")
 def home():
-    return "Fashion Classifier is running."
+    return "Fashion Classifier API is running."
 
 @app.route("/predict", methods=["POST"])
-def predict():
+def predict_api():
     if 'file' not in request.files:
-        return jsonify({"error": "No file provided"}), 400
+        return jsonify({"error": "No image file provided."}), 400
 
     file = request.files['file']
     filepath = os.path.join("temp", file.filename)
@@ -19,7 +24,7 @@ def predict():
     file.save(filepath)
 
     try:
-        result = predict_attributes(filepath)
+        result = predict(model, cat_names, attr_names, attr_types, filepath)
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -27,4 +32,4 @@ def predict():
         os.remove(filepath)
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=10000)
+    app.run(host="0.0.0.0", port=10000)
